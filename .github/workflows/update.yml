@@ -1,0 +1,51 @@
+name: Update subscription
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # каждый час
+  workflow_dispatch: {}      # ручной запуск из UI
+  push:
+    branches: [main]
+    paths:
+      - 'generate.py'
+      - '.github/workflows/update.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "update-sub"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate subscription
+        run: python3 generate.py
+
+      - name: Show stats
+        run: cat docs/stats.json
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          if git diff --staged --quiet; then
+            echo "no changes to commit"
+          else
+            git commit -m "auto-update: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
